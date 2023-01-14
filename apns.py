@@ -2,11 +2,11 @@ import datetime
 import time
 
 import requests, urllib3
-import pynvml
+import py3nvml
 import logging
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-pynvml.nvmlInit()
+py3nvml.py3nvml.nvmlInit()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 fmt = logging.Formatter(fmt="%(asctime)s - %(levelname)-6s - %(filename)-8s : %(lineno)-4s line | %(message)s",
@@ -31,31 +31,32 @@ def all2list(x):
 
 
 def gpu_is_free():
-    deviceCount = pynvml.nvmlDeviceGetCount()  # 设备数
+    deviceCount = py3nvml.py3nvml.nvmlDeviceGetCount()  # 设备数
     gpuUsed = 0
     for i in range(deviceCount):
-        handle = pynvml.nvmlDeviceGetHandleByIndex(i)
+        handle = py3nvml.py3nvml.nvmlDeviceGetHandleByIndex(i)
 
-        computeProcess = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)  # 获取计算模式程序的pid
+        computeProcess = py3nvml.py3nvml.nvmlDeviceGetComputeRunningProcesses(handle)  # 获取计算模式程序的pid
         logger.debug(f"The {i} GPU, Num of Process: {len(computeProcess)}")
         if len(computeProcess) != 0:
             gpuUsed += 1
             continue
 
-        memInfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
+        memInfo = py3nvml.py3nvml.nvmlDeviceGetMemoryInfo(handle)
         logger.debug(f"The {i} GPU, Mem Used: {memInfo.used / memInfo.total}")
         if memInfo.used / memInfo.total > 3e-2:
             gpuUsed += 1
             continue
 
-        gpuUtilRate = pynvml.nvmlDeviceGetUtilizationRates(handle).gpu
+        gpuUtilRate = py3nvml.py3nvml.nvmlDeviceGetUtilizationRates(handle).gpu
         logger.debug(f"The {i} GPU, Util Rates:{gpuUtilRate}")
         if gpuUtilRate > 5:
             gpuUsed += 1
 
-    if gpuUsed > 1:
+    if gpuUsed > 0:
         return False
-    return True
+    else:
+        return True
 
 
 def getIP():
@@ -82,7 +83,7 @@ class APNS():
 
         self.scheduler.add_job(self.sendGPU2bark, 'interval', minutes=1)
         self.scheduler.add_job(self.clearSendMsgNum, 'interval', minutes=40)
-        self.scheduler.add_job(self.send2time, 'cron', hour="10-17/2")
+        # self.scheduler.add_job(self.send2time, 'cron', hour="10-17/2")
 
         logger.info(f"Bark keys: {self.barksList}")
         # self.start()
@@ -143,10 +144,11 @@ class APNS():
             self.scheduler.start()
         except (KeyboardInterrupt, SystemExit):
             pass
-        self.stop()
+        finally:
+            self.stop()
 
     def stop(self):
-        pynvml.nvmlShutdown()
+        py3nvml.py3nvml.nvmlShutdown()
         self.scheduler.shutdown()
 
 
@@ -154,7 +156,7 @@ if __name__ == '__main__':
     # print(getIP())
     # exit()
     a = APNS(['nseg8Kgy4gjbuRNW4etA2E'])
-    a.send2all("hello",'zk')
+    # a.send2all("hello",'zk')
     print(a.getTime())
     print(gpu_is_free())
     a.start()
